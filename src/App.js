@@ -4,6 +4,9 @@ import FlatButton from 'material-ui/FlatButton';
 import MuiThemeProvider from 'material-ui/styles/MuiThemeProvider';
 import TextField from 'material-ui/TextField';
 import RaisedButton from 'material-ui/RaisedButton';
+import {Card, CardActions, CardHeader, CardMedia, CardTitle, CardText} from 'material-ui/Card';
+import Chip from 'material-ui/Chip';
+
 import fetchJSONP from 'fetch-jsonp';
 import io from 'socket.io-client';
 
@@ -12,6 +15,7 @@ const modes = {
   LIST: 'LIST',
   RESULT: 'RESULT',
 };
+const no_image_url = 'http://placehold.jp/240x150.png?text=No Image'
 
 
 class App extends Component {
@@ -54,8 +58,8 @@ class App extends Component {
     }, (response) => {
       console.log(response);
       const location = {
-        latitude: 35.3140392,
-        longitude: 139.4706895,
+        latitude: 35.6903957,
+        longitude: 139.7686287,
       };
       this.setState({ location });
     }, { timeout: 3000});
@@ -95,8 +99,11 @@ class App extends Component {
     fetchJSONP(url)
       .then((res) => res.json())
       .then((json) => {
-        this.setState({ candidates: json.rest });
-      });
+
+        console.log(json);
+        this.setState({ candidates: (json.total_hit_count == 1) ? [json.rest] : json.rest });
+
+      }).catch((ms) => { console.log(ms);});
     this.setState({ mode: modes.LIST });
   }
 
@@ -107,26 +114,36 @@ class App extends Component {
   render() {
     return (
       <MuiThemeProvider>
-        <div>
+        <div className={"reservation-input-area"}>
           { (this.state.mode === modes.TOP) ?
-            <div>
-              <h1>MONIJIKAI</h1>
-              名前(カナ): <TextField onChange={(e, v) => this.setState({ name: v})}/><br />
-              電話番号: <TextField onChange={(e, v) => this.setState({ phone: v })}/><br />
-              人数: <TextField onChange={(e, v) => this.setState({ numOfPeople: parseInt(v) })}/><br />
-              <RaisedButton label="探す" onClick={this.onHandleSearch.bind(this)} disabled={!this.state.location.latitude}/>
-            </div>
+            <Card>
+              <CardHeader title="もう二次会！" subtitle="自動会場予約システム" style="{'background-color': '#000'}"/>
+              <span>名前(カナ):</span> <TextField onChange={(e, v) => this.setState({ name: v})}  errorText={(this.state.name ? '' : '')} /><br />
+              <span>電話番号:</span> <TextField onChange={(e, v) => this.setState({ phone: v })}/><br />
+              <span>人数:</span> <TextField onChange={(e, v) => this.setState({ numOfPeople: parseInt(v) })}/><br />
+              <RaisedButton label="探す" primary={true} onClick={this.onHandleSearch.bind(this)} disabled={!this.state.location.latitude}/>
+            </Card>
           : (this.state.mode === modes.LIST) ?
             <div>
               <List>
                 {this.state.candidates.map((value, index) =>
-                  <ListItem key={index}>
-                    <p>{value.name}</p>
-                    <p>{value.tel}</p>
+                  <ListItem key={index} className={"list-item"} >
+                    <img src={value.image_url ?
+                      (typeof(value.image_url.shop_image1) == 'string' ? value.image_url.shop_image1 : no_image_url) : no_image_url
+                    }
+                      style={ { float: 'left', 'margin-right': '20px'} } />
+                    <p><b>{value.name}</b></p>
+                    <p style={{"background-color": '#d3edfb' }}>営業時間:{typeof(value.opentime) == 'string' ? value.opentime : '' }</p>
+                    <span>最寄駅:{value.access ? value.access.station :''} {value.access ? value.access.walk :''}分 </span><br />
+                    <a href={value.url} target={'_blank'}>ページを開く</a>
+                    {(value.category ? value.category.split(/　| /) : []).map((value2) =>
+                      <Chip style={ { float: 'left', "margin-right": "5px" } }>{value2}</Chip>
+                    )}
+                    <div  style={ { clear: 'both' } }></div>
                   </ListItem>
                 )}
               </List>
-              <RaisedButton label="予約する" onClick={this.onHandleReserve.bind(this)}/>
+                <RaisedButton label="予約する" onClick={this.onHandleReserve.bind(this)} primary={true} style={{ margin: 'auto', 'font-weight': 'bold', display: 'block'}}/>
             </div>
           :
             <p>予約できました</p>
