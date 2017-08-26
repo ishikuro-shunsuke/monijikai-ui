@@ -92,41 +92,45 @@ class App extends Component {
   }
 
   onHandleReserve() {
+    this.setState({ wavDone: false })
     const candidates = [].concat(this.state.candidates);
-    candidates.reduce((promise, data) => {
-      promise.then(() => {
-        const phoneDest = data.tel.replace(/[^0-9]/g, '');
-        const phoneCall = `http://153.127.195.16:4567/phonecall?phonefrom=${this.state.phone}&phonedest=${phoneDest}&timestamp=${this.state.timestamp}`;
-        fetch(phoneCall, { mode: 'cors' })
-          .then((res) => {
-            if (res.ok) {
-              console.log('succeeded phonecall');
-              setInterval(() => {
-                fetch(`http://153.127.195.16/result/${this.state.phone}_${phoneDest}_${this.state.timestamp}.result`, { mode: 'cors' })
-                  .then((res) => {
-                    if (res.status === 404)
-                      return '404';
-                    Promise.resolve();
-                  })
-                  .then((text) => {
-                    console.log(text);
-                    resolve(text);
-                  })
-                  .catch((err) => {});
-              }, 10000);
-            } else {
-              console.error('could not get a response by phonecall');
-              reject();
-            }
-          })
-          .catch((err) => {
-            console.error(err);
-            reject();
-          });
-      }, Promise.resolve());
-    });
-    this.setState({ mode: modes.RESULT });
-  })
+    candidates[0].reservationState = reservationState.CALLING;
+    this.setState({ candidates });
+    const data = candidates[0];
+    const phoneDest = data.tel.replace(/[^0-9]/g, '');
+    const phoneCall = `http://153.127.195.16:4567/phonecall?phonefrom=${this.state.phone}&phonedest=${phoneDest}&timestamp=${this.state.timestamp}`;
+    fetch(phoneCall, { mode: 'cors' })
+      .then((res) => {
+        if (res.ok) {
+          console.log('succeeded phonecall');
+          const timer = setInterval(() => {
+            fetch(`http://153.127.195.16/result/${this.state.phone}_${phoneDest}_${this.state.timestamp}.result`, { mode: 'cors' })
+              .then((res) => {
+                console.log(res);
+                if (res.status === 404)
+                  return Promise.reject('404');
+                 return res.text();
+              })
+              .then((text) => {
+                console.log(text);
+                if (text === 'NG') {
+                  return
+                }
+                clearInterval(timer);
+                candidates[0].reservationState = reservationState.SUCCEEDED;
+                this.setState({ candidates })
+                this.setState({ mode: modes.RESULT });
+              })
+              .catch((err) => {});
+            }, 10000);
+        } else {
+          console.error('could not get a response by phonecall');
+        }
+      })
+      .catch((err) => {
+        console.error(err);
+      });
+  }
 
   validate() {
     return ((this.state.location.latitude)
@@ -166,7 +170,17 @@ class App extends Component {
               <RaisedButton label="予約する" disabled={ !this.state.wavDone }onClick={this.onHandleReserve.bind(this)}/>
             </div>
           :
-            <p>予約できました</p>
+            <div>
+              <p>予約できました</p>
+              <List>
+                {this.state.candidates.filter((d) => d.reservationState === reservationState.SUCCEEDED).map((value, index) =>
+                  <ListItem disabled={true} key={index}>
+                    <p>{value.name}</p>
+                    <p>{value.tel}</p>
+                  </ListItem>
+                )}
+              </List>
+            </div>
           }
         </div>
       </MuiThemeProvider>
