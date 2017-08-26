@@ -51,16 +51,23 @@ class App extends Component {
         longitude: position.coords.longitude,
       };
       this.setState({ location });
-    });
+    }, (response) => {
+      console.log(response);
+      const location = {
+        latitude: 35.3140392,
+        longitude: 139.4706895,
+      };
+      this.setState({ location });
+    }, { timeout: 3000});
 
-    const socket = io('http://ec2-54-238-230-84.ap-northeast-1.compute.amazonaws.com');
+    /* const socket = io('http://ec2-54-238-230-84.ap-northeast-1.compute.amazonaws.com');
     socket.on('init', (d) => {
       console.log(d);
     });
     socket.on('update', data => {
       console.log(data);
     });
-    this.setState({ socket });
+    this.setState({ socket }); */
   }
 
   handleMessage(message) {
