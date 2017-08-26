@@ -4,6 +4,9 @@ import FlatButton from 'material-ui/FlatButton';
 import MuiThemeProvider from 'material-ui/styles/MuiThemeProvider';
 import TextField from 'material-ui/TextField';
 import RaisedButton from 'material-ui/RaisedButton';
+import {Card, CardActions, CardHeader, CardMedia, CardTitle, CardText} from 'material-ui/Card';
+import Chip from 'material-ui/Chip';
+
 import fetchJSONP from 'fetch-jsonp';
 import io from 'socket.io-client';
 
@@ -12,6 +15,7 @@ const modes = {
   LIST: 'LIST',
   RESULT: 'RESULT',
 };
+const no_image_url = 'http://placehold.jp/240x150.png?text=No Image'
 
 const reservationState = {
   NOT_STARTED: 'NOT_STARTED',
@@ -58,8 +62,16 @@ class App extends Component {
         longitude: position.coords.longitude,
       };
       this.setState({ location });
-    });
+    }, (response) => {
+      console.log(response);
+      const location = {
+        latitude: 35.6903957,
+        longitude: 139.7686287,
+      };
+      this.setState({ location });
+    }, { timeout: 3000});
   }
+
 
   onHandleSearch() {
     console.log('SEARCH', this.state);
@@ -68,6 +80,8 @@ class App extends Component {
     fetchJSONP(url)
       .then((res) => res.json())
       .then((json) => {
+        console.log(json);
+        this.setState({ candidates: (json.total_hit_count == 1) ? [json.rest] : json.rest });
         const candidates = json.rest.map((data) => {
           data.reservationState = reservationState.NOT_STARTED;
           return data;
@@ -142,32 +156,37 @@ class App extends Component {
   render() {
     return (
       <MuiThemeProvider>
-        <div>
+        <div className={"reservation-input-area"}>
           { (this.state.mode === modes.TOP) ?
-            <div>
-              <h1>MONIJIKAI</h1>
-              名前(カナ): <TextField onChange={(e, v) => this.setState({ name: v})}/><br />
-              電話番号: <TextField onChange={(e, v) => this.setState({ phone: v })}/><br />
-              人数: <TextField onChange={(e, v) => this.setState({ numOfPeople: parseInt(v) })}/><br />
-              <RaisedButton label="探す" onClick={this.onHandleSearch.bind(this)} disabled={!this.validate()}/>
-            </div>
+            <Card>
+              <h2 style={{ 'border-left': '5px solid red', 'padding-left': '10px'}}>自動電話予約システム</h2>
+              <span>名前(カナ):</span> <TextField onChange={(e, v) => this.setState({ name: v})}  errorText={(this.state.name ? '' : '')} /><br />
+              <span>電話番号:</span> <TextField onChange={(e, v) => this.setState({ phone: v })}/><br />
+              <span>人数:</span> <TextField onChange={(e, v) => this.setState({ numOfPeople: parseInt(v) })}/><br />
+              <RaisedButton label="探す" primary={true} onClick={this.onHandleSearch.bind(this)} disabled={!this.validate()}/>
+            </Card>
           : (this.state.mode === modes.LIST) ?
             <div>
+              <h2 style={{ 'border-left': '5px solid red', 'padding-left': '10px'}}>予約先候補</h2>
               <List>
                 {this.state.candidates.map((value, index) =>
-                  <ListItem disabled={value.reservationState !== reservationState.NOT_STARTED } key={index}>
-                    {
-                      (value.reservationState === reservationState.NOT_STARTED) ? <p>未着手</p> :
-                      (value.reservationState === reservationState.CALLING) ? <p>電話中</p> :
-                      (value.reservationState === reservationState.FAILED) ? <p>予約失敗</p> :
-                      (value.reservationState === reservationState.SUCCEEDED) ? <p>予約成功</p> : <p></p>
+                  <ListItem key={index} className={"list-item"} >
+                    <img src={value.image_url ?
+                      (typeof(value.image_url.shop_image1) == 'string' ? value.image_url.shop_image1 : no_image_url) : no_image_url
                     }
-                    <p>{value.name}</p>
-                    <p>{value.tel}</p>
+                      style={ { float: 'left', 'margin-right': '20px'} } />
+                    {(value.category ? value.category.split(/　| /) : []).map((value2) =>
+                      <Chip style={ { float: 'right', "margin-right": "5px" } }>{value2}</Chip>
+                    )}
+                    <p><b>{value.name}</b></p>
+                    <p style={{"background-color": '#d3edfb' }}>営業時間:{typeof(value.opentime) == 'string' ? value.opentime : '' }</p>
+                    <span>最寄駅:{value.access ? value.access.station :''} {value.access ? value.access.walk :''}分 </span><br />
+                    <a href={value.url} target={'_blank'} style={{ float: 'right'}}>ページを開く</a>
+                    <div  style={ { clear: 'both' } }></div>
                   </ListItem>
                 )}
               </List>
-              <RaisedButton label="予約する" disabled={ !this.state.wavDone }onClick={this.onHandleReserve.bind(this)}/>
+                <RaisedButton label="予約する" onClick={this.onHandleReserve.bind(this)} disabled={ !this.state.wavDone } primary={true} style={{ margin: 'auto', 'font-weight': 'bold', display: 'block'}}/>
             </div>
           :
             <div>
