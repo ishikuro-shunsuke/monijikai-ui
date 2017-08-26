@@ -17,6 +17,12 @@ const modes = {
 };
 const no_image_url = 'http://placehold.jp/240x150.png?text=No Image'
 
+const reservationState = {
+  NOT_STARTED: 'NOT_STARTED',
+  CALLING: 'CALLING',
+  SUCCEEDED: 'SUCCEEDED',
+  FAILED: 'FAILED',
+};
 
 class App extends Component {
   constructor() {
@@ -24,7 +30,7 @@ class App extends Component {
     this.state = {
       mode: modes.TOP,
       name: '',
-      tel: '',
+      phone: '',
       numOfPeople: 4,
       delay: 15,
       timestamp: '',
@@ -32,6 +38,7 @@ class App extends Component {
         latitude: null,
         longitude: null,
       },
+      wavDone: false,
       socket: null,
       candidates: [
         {
@@ -63,34 +70,8 @@ class App extends Component {
       };
       this.setState({ location });
     }, { timeout: 3000});
-
-    /* const socket = io('http://ec2-54-238-230-84.ap-northeast-1.compute.amazonaws.com');
-    socket.on('init', (d) => {
-      console.log(d);
-    });
-    socket.on('update', data => {
-      console.log(data);
-    });
-    this.setState({ socket }); */
   }
 
-  handleMessage(message) {
-    console.log(JSON.stringify(message));
-    //const candidates = this.state.candidates;
-    //candidates[message.id] = message.votes;
-    //this.setState({ candidates });
-  }
-
-  onHandleClick() {
-    const candidates = this.state.candidates;
-    candidates[0].votes = 10;
-    candidates.push({
-      id: 3,
-      img: 1,
-      votes: 300,
-    })
-    this.setState({ candidates });
-  }
 
   onHandleSearch() {
     console.log('SEARCH', this.state);
@@ -99,16 +80,77 @@ class App extends Component {
     fetchJSONP(url)
       .then((res) => res.json())
       .then((json) => {
-
         console.log(json);
         this.setState({ candidates: (json.total_hit_count == 1) ? [json.rest] : json.rest });
-
-      }).catch((ms) => { console.log(ms);});
+        const candidates = json.rest.map((data) => {
+          data.reservationState = reservationState.NOT_STARTED;
+          return data;
+        });
+        this.setState({ candidates });
+      });
     this.setState({ mode: modes.LIST });
+
+    const createWavFile = `http://153.127.195.16:8080/create_wav_file?name="${this.state.name}"&personcount="${this.state.numOfPeople}"&ragtime="${this.state.delay}"&phonefrom="${this.state.phone}"`
+    fetch(createWavFile, { mode: 'cors' })
+      .then((res) => {
+        if (res.ok) {
+          this.setState({ wavDone: true });
+          console.log('succeeded create_wav_file');
+        } else {
+          console.error('could not get a response by create_wav_file');
+        }
+      })
+      .catch((err) => {
+        console.error(err);
+      });
   }
 
   onHandleReserve() {
-    this.setState({ mode: modes.RESULT });
+    this.setState({ wavDone: false })
+    const candidates = [].concat(this.state.candidates);
+    candidates[0].reservationState = reservationState.CALLING;
+    this.setState({ candidates });
+    const data = candidates[0];
+    const phoneDest = data.tel.replace(/[^0-9]/g, '');
+    const phoneCall = `http://153.127.195.16:4567/phonecall?phonefrom=${this.state.phone}&phonedest=${phoneDest}&timestamp=${this.state.timestamp}`;
+    fetch(phoneCall, { mode: 'cors' })
+      .then((res) => {
+        if (res.ok) {
+          console.log('succeeded phonecall');
+          const timer = setInterval(() => {
+            fetch(`http://153.127.195.16/result/${this.state.phone}_${phoneDest}_${this.state.timestamp}.result`, { mode: 'cors' })
+              .then((res) => {
+                console.log(res);
+                if (res.status === 404)
+                  return Promise.reject('404');
+                 return res.text();
+              })
+              .then((text) => {
+                console.log(text);
+                if (text === 'NG') {
+                  return
+                }
+                clearInterval(timer);
+                candidates[0].reservationState = reservationState.SUCCEEDED;
+                this.setState({ candidates })
+                this.setState({ mode: modes.RESULT });
+              })
+              .catch((err) => {});
+            }, 10000);
+        } else {
+          console.error('could not get a response by phonecall');
+        }
+      })
+      .catch((err) => {
+        console.error(err);
+      });
+  }
+
+  validate() {
+    return ((this.state.location.latitude)
+         && (this.state.name.length > 0)
+         && (this.state.phone.length > 0)
+         && (this.state.numOfPeople > 1));
   }
 
   render() {
@@ -121,7 +163,7 @@ class App extends Component {
               <span>名前(カナ):</span> <TextField onChange={(e, v) => this.setState({ name: v})}  errorText={(this.state.name ? '' : '')} /><br />
               <span>電話番号:</span> <TextField onChange={(e, v) => this.setState({ phone: v })}/><br />
               <span>人数:</span> <TextField onChange={(e, v) => this.setState({ numOfPeople: parseInt(v) })}/><br />
-              <RaisedButton label="探す" primary={true} onClick={this.onHandleSearch.bind(this)} disabled={!this.state.location.latitude}/>
+              <RaisedButton label="探す" primary={true} onClick={this.onHandleSearch.bind(this)} disabled={!this.validate()}/>
             </Card>
           : (this.state.mode === modes.LIST) ?
             <div style={{ width: '100%'}}>
@@ -148,10 +190,20 @@ class App extends Component {
                   </ListItem>
                 )}
               </List>
-                <RaisedButton label="予約する" onClick={this.onHandleReserve.bind(this)} primary={true} style={{ margin: 'auto', 'font-weight': 'bold', display: 'block'}}/>
+                <RaisedButton label="予約する" onClick={this.onHandleReserve.bind(this)} disabled={ !this.state.wavDone } primary={true} style={{ margin: 'auto', 'font-weight': 'bold', display: 'block'}}/>
             </div>
           :
-            <p>予約できました</p>
+            <div>
+              <p>予約できました</p>
+              <List>
+                {this.state.candidates.filter((d) => d.reservationState === reservationState.SUCCEEDED).map((value, index) =>
+                  <ListItem disabled={true} key={index}>
+                    <p>{value.name}</p>
+                    <p>{value.tel}</p>
+                  </ListItem>
+                )}
+              </List>
+            </div>
           }
         </div>
       </MuiThemeProvider>
