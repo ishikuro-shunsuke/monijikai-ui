@@ -88,9 +88,7 @@ class App extends Component {
     fetchJSONP(url)
       .then((res) => res.json())
       .then((json) => {
-        console.log(json.rest);
-        const candidates = json.rest;
-        this.setState({ candidates });
+        this.setState({ candidates: json.rest });
       });
     this.setState({ mode: modes.LIST });
   }
@@ -109,19 +107,17 @@ class App extends Component {
               名前(カナ): <TextField onChange={(e, v) => this.setState({ name: v})}/><br />
               電話番号: <TextField onChange={(e, v) => this.setState({ phone: v })}/><br />
               人数: <TextField onChange={(e, v) => this.setState({ numOfPeople: parseInt(v) })}/><br />
-              <RaisedButton label="探す" onClick={this.onHandleSearch.bind(this)}/>
+              <RaisedButton label="探す" onClick={this.onHandleSearch.bind(this)} disabled={!this.state.location.latitude}/>
             </div>
           : (this.state.mode === modes.LIST) ?
             <div>
               <List>
-              {this.state.candidates.map((value, index) =>
-                <ListItem key={index}>
-                  <FlatButton fullWidth style={{ height: '100%' }} onClick={this.onHandleClick.bind(this)}>
-                    <img style={{ display: 'block', objectFit: 'contain', width: '100%'}} src={process.env.PUBLIC_URL + `/assets/${value.img}.png`} />
-                  </FlatButton>
-                  <p>{value.votes} voted!</p>
-                </ListItem>
-              )}
+                {this.state.candidates.map((value, index) =>
+                  <ListItem key={index}>
+                    <p>{value.name}</p>
+                    <p>{value.tel}</p>
+                  </ListItem>
+                )}
               </List>
               <RaisedButton label="予約する" onClick={this.onHandleReserve.bind(this)}/>
             </div>
