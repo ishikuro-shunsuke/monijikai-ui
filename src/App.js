@@ -4,6 +4,7 @@ import FlatButton from 'material-ui/FlatButton';
 import MuiThemeProvider from 'material-ui/styles/MuiThemeProvider';
 import TextField from 'material-ui/TextField';
 import RaisedButton from 'material-ui/RaisedButton';
+import fetchJSONP from 'fetch-jsonp';
 import io from 'socket.io-client';
 
 const modes = {
@@ -12,37 +13,46 @@ const modes = {
   RESULT: 'RESULT',
 };
 
+
 class App extends Component {
   constructor() {
     super();
     this.state = {
       mode: modes.TOP,
       name: '',
-      phone: '',
+      tel: '',
       numOfPeople: 4,
       delay: 15,
+      timestamp: '',
+      location: {
+        latitude: null,
+        longitude: null,
+      },
       socket: null,
       candidates: [
         {
-          id: '0',
-          img: '1',
-          votes: 0,
+          name: '',
+          tel: '',
+          url: '',
+          img: '',
         },
-        {
-          id: '1',
-          img: '2',
-          votes: 0,
-        },
-        {
-          id: '2',
-          img: '3',
-          votes: 0,
-        }
-      ]
+      ],
     };
   }
 
   componentDidMount() {
+    const date = new Date();
+    this.setState({ timestamp: date.getTime() });
+
+    navigator.geolocation.getCurrentPosition((position) => {
+      console.log('got location')
+      const location = {
+        latitude: position.coords.latitude,
+        longitude: position.coords.longitude,
+      };
+      this.setState({ location });
+    });
+
     const socket = io('http://ec2-54-238-230-84.ap-northeast-1.compute.amazonaws.com');
     socket.on('init', (d) => {
       console.log(d);
@@ -51,9 +61,6 @@ class App extends Component {
       console.log(data);
     });
     this.setState({ socket });
-  }
-
-  componentWillUnmount() {
   }
 
   handleMessage(message) {
@@ -75,10 +82,16 @@ class App extends Component {
   }
 
   onHandleSearch() {
-    navigator.geolocation.getCurrentPosition(function(position) {
-      console.log(position.coords.latitude);
-      console.log(position.coords.longitude);
-    });
+    console.log('SEARCH', this.state);
+    const keyid = 'cb55f4d7ecfceda4f16984f26df4a9b8';
+    const url = `https://api.gnavi.co.jp/RestSearchAPI/20150630/?keyid=${keyid}&format=json&input_coordinates_mode=2&latitude=${this.state.location.latitude}&longitude=${this.state.location.longitude}&category_s=RSFST09004`;
+    fetchJSONP(url)
+      .then((res) => res.json())
+      .then((json) => {
+        console.log(json.rest);
+        const candidates = json.rest;
+        this.setState({ candidates });
+      });
     this.setState({ mode: modes.LIST });
   }
 
@@ -93,8 +106,9 @@ class App extends Component {
           { (this.state.mode === modes.TOP) ?
             <div>
               <h1>MONIJIKAI</h1>
-              名前(カナ): <TextField /><br />
-              人数: <TextField /><br />
+              名前(カナ): <TextField onChange={(e, v) => this.setState({ name: v})}/><br />
+              電話番号: <TextField onChange={(e, v) => this.setState({ phone: v })}/><br />
+              人数: <TextField onChange={(e, v) => this.setState({ numOfPeople: parseInt(v) })}/><br />
               <RaisedButton label="探す" onClick={this.onHandleSearch.bind(this)}/>
             </div>
           : (this.state.mode === modes.LIST) ?
