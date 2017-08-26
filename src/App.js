@@ -6,6 +6,7 @@ import TextField from 'material-ui/TextField';
 import RaisedButton from 'material-ui/RaisedButton';
 import {Card, CardActions, CardHeader, CardMedia, CardTitle, CardText} from 'material-ui/Card';
 import Chip from 'material-ui/Chip';
+import complete from './complete.png';
 
 import fetchJSONP from 'fetch-jsonp';
 import io from 'socket.io-client';
@@ -190,12 +191,22 @@ class App extends Component {
             </div>
           :
             <div>
-              <p>予約できました</p>
+              <img src={complete} />
               <List>
                 {this.state.candidates.filter((d) => d.reservationState === reservationState.SUCCEEDED).map((value, index) =>
-                  <ListItem disabled={true} key={index}>
-                    <p>{value.name}</p>
-                    <p>{value.tel}</p>
+                  <ListItem key={index} className={"list-item"} >
+                    <img src={value.image_url ?
+                      (typeof(value.image_url.shop_image1) == 'string' ? value.image_url.shop_image1 : no_image_url) : no_image_url
+                    }
+                      style={ { float: 'left', 'margin-right': '20px'} } />
+                    {(value.category ? value.category.split(/　| /) : []).map((value2) =>
+                      <Chip style={ { float: 'right', "margin-right": "5px" } }>{value2}</Chip>
+                    )}
+                    <p><b>{value.name}</b></p>
+                    <p style={{"background-color": '#d3edfb' }}>営業時間:{typeof(value.opentime) == 'string' ? value.opentime : '' }</p>
+                    <span>最寄駅:{value.access ? value.access.station :''} {value.access ? value.access.walk :''}分 </span><br />
+                    <a href={value.url} target={'_blank'} style={{ float: 'right'}}>ページを開く</a>
+                    <div  style={ { clear: 'both' } }></div>
                   </ListItem>
                 )}
               </List>
