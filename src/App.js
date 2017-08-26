@@ -159,7 +159,7 @@ class App extends Component {
         <div className={"reservation-input-area"}>
           { (this.state.mode === modes.TOP) ?
             <Card>
-              <CardHeader title="もう二次会！" subtitle="自動会場予約システム" style="{'background-color': '#000'}"/>
+              <h2 style={{ 'border-left': '5px solid red', 'padding-left': '10px'}}>自動電話予約システム</h2>
               <span>名前(カナ):</span> <TextField onChange={(e, v) => this.setState({ name: v})}  errorText={(this.state.name ? '' : '')} /><br />
               <span>電話番号:</span> <TextField onChange={(e, v) => this.setState({ phone: v })}/><br />
               <span>人数:</span> <TextField onChange={(e, v) => this.setState({ numOfPeople: parseInt(v) })}/><br />
@@ -167,6 +167,7 @@ class App extends Component {
             </Card>
           : (this.state.mode === modes.LIST) ?
             <div>
+              <h2 style={{ 'border-left': '5px solid red', 'padding-left': '10px'}}>予約先候補</h2>
               <List>
                 {this.state.candidates.map((value, index) =>
                   <ListItem key={index} className={"list-item"} >
@@ -174,13 +175,13 @@ class App extends Component {
                       (typeof(value.image_url.shop_image1) == 'string' ? value.image_url.shop_image1 : no_image_url) : no_image_url
                     }
                       style={ { float: 'left', 'margin-right': '20px'} } />
+                    {(value.category ? value.category.split(/　| /) : []).map((value2) =>
+                      <Chip style={ { float: 'right', "margin-right": "5px" } }>{value2}</Chip>
+                    )}
                     <p><b>{value.name}</b></p>
                     <p style={{"background-color": '#d3edfb' }}>営業時間:{typeof(value.opentime) == 'string' ? value.opentime : '' }</p>
                     <span>最寄駅:{value.access ? value.access.station :''} {value.access ? value.access.walk :''}分 </span><br />
-                    <a href={value.url} target={'_blank'}>ページを開く</a>
-                    {(value.category ? value.category.split(/　| /) : []).map((value2) =>
-                      <Chip style={ { float: 'left', "margin-right": "5px" } }>{value2}</Chip>
-                    )}
+                    <a href={value.url} target={'_blank'} style={{ float: 'right'}}>ページを開く</a>
                     <div  style={ { clear: 'both' } }></div>
                   </ListItem>
                 )}
