@@ -6,9 +6,20 @@ import TextField from 'material-ui/TextField';
 import RaisedButton from 'material-ui/RaisedButton';
 import {Card, CardActions, CardHeader, CardMedia, CardTitle, CardText} from 'material-ui/Card';
 import Chip from 'material-ui/Chip';
+import RefreshIndicator from 'material-ui/RefreshIndicator';
 
 import fetchJSONP from 'fetch-jsonp';
 import io from 'socket.io-client';
+
+const style = {
+  container: {
+    position: 'relative',
+  },
+  refresh: {
+    display: 'inline-block',
+    position: 'relative',
+  },
+};
 
 const modes = {
   TOP: 'TOP',
@@ -168,6 +179,7 @@ class App extends Component {
           : (this.state.mode === modes.LIST) ?
             <div style={{ width: '100%'}}>
               <h2 style={{ 'border-left': '5px solid red', 'padding-left': '10px'}}>予約先候補</h2>
+                <RaisedButton label="予約する" onClick={this.onHandleReserve.bind(this)} disabled={ !this.state.wavDone } primary={true} style={{ margin: 'auto', 'font-weight': 'bold', display: 'block'}}/>
               <List>
                 {this.state.candidates.map((value, index) =>
                   <ListItem key={index} className={"list-item"} >
@@ -186,11 +198,19 @@ class App extends Component {
                     <span>最寄駅:{value.access ? value.access.station :''} {value.access ? value.access.walk :''}分 </span><br />
                     <a href={value.url} target={'_blank'} style={{ float: 'right'}}>ページを開く</a>
                     <div  style={ { clear: 'both' } }></div>
-                    </div>
+                    { (value.reservationState == reservationState.CALLING) ?
+                      <RefreshIndicator
+                         size={50}
+                         left={70}
+                         top={0}
+                         loadingColor="#FF9800"
+                         status="loading"
+                         style={style.refresh}
+                       /> : ''}
+                    { (value.reservationState == reservationState.FAILED) ?  '予約できませんでした': ''} </div>
                   </ListItem>
                 )}
               </List>
-                <RaisedButton label="予約する" onClick={this.onHandleReserve.bind(this)} disabled={ !this.state.wavDone } primary={true} style={{ margin: 'auto', 'font-weight': 'bold', display: 'block'}}/>
             </div>
           :
             <div>
