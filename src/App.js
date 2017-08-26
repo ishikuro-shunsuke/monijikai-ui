@@ -6,9 +6,20 @@ import TextField from 'material-ui/TextField';
 import RaisedButton from 'material-ui/RaisedButton';
 import {Card, CardActions, CardHeader, CardMedia, CardTitle, CardText} from 'material-ui/Card';
 import Chip from 'material-ui/Chip';
+import RefreshIndicator from 'material-ui/RefreshIndicator';
 
 import fetchJSONP from 'fetch-jsonp';
 import io from 'socket.io-client';
+
+const style = {
+  container: {
+    position: 'relative',
+  },
+  refresh: {
+    display: 'inline-block',
+    position: 'relative',
+  },
+};
 
 const modes = {
   TOP: 'TOP',
@@ -65,8 +76,8 @@ class App extends Component {
     }, (response) => {
       console.log(response);
       const location = {
-        latitude: 35.6903957,
-        longitude: 139.7686287,
+        latitude: 35.4657858,
+        longitude: 139.6201192,
       };
       this.setState({ location });
     }, { timeout: 3000});
@@ -166,15 +177,19 @@ class App extends Component {
               <RaisedButton label="探す" primary={true} onClick={this.onHandleSearch.bind(this)} disabled={!this.validate()}/>
             </Card>
           : (this.state.mode === modes.LIST) ?
-            <div>
+            <div style={{ width: '100%'}}>
               <h2 style={{ 'border-left': '5px solid red', 'padding-left': '10px'}}>予約先候補</h2>
+                <RaisedButton label="予約する" onClick={this.onHandleReserve.bind(this)} disabled={ !this.state.wavDone } primary={true} style={{ margin: 'auto', 'font-weight': 'bold', display: 'block'}}/>
               <List>
                 {this.state.candidates.map((value, index) =>
                   <ListItem key={index} className={"list-item"} >
+                    <div style={{ width: "25%", display: 'table-cell', 'vertical-align': 'top', padding: '10px'}}>
                     <img src={value.image_url ?
                       (typeof(value.image_url.shop_image1) == 'string' ? value.image_url.shop_image1 : no_image_url) : no_image_url
                     }
-                      style={ { float: 'left', 'margin-right': '20px'} } />
+                      style={ { float: 'left', 'margin-right': '20px', width: '100%' } } />
+                    </div>
+                    <div  style={{ width: "75%", display: 'table-cell', 'vertical-align': 'top'}}>
                     {(value.category ? value.category.split(/　| /) : []).map((value2) =>
                       <Chip style={ { float: 'right', "margin-right": "5px" } }>{value2}</Chip>
                     )}
@@ -183,10 +198,19 @@ class App extends Component {
                     <span>最寄駅:{value.access ? value.access.station :''} {value.access ? value.access.walk :''}分 </span><br />
                     <a href={value.url} target={'_blank'} style={{ float: 'right'}}>ページを開く</a>
                     <div  style={ { clear: 'both' } }></div>
+                    { (value.reservationState == reservationState.CALLING) ?
+                      <RefreshIndicator
+                         size={50}
+                         left={70}
+                         top={0}
+                         loadingColor="#FF9800"
+                         status="loading"
+                         style={style.refresh}
+                       /> : ''}
+                    { (value.reservationState == reservationState.FAILED) ?  '予約できませんでした': ''} </div>
                   </ListItem>
                 )}
               </List>
-                <RaisedButton label="予約する" onClick={this.onHandleReserve.bind(this)} disabled={ !this.state.wavDone } primary={true} style={{ margin: 'auto', 'font-weight': 'bold', display: 'block'}}/>
             </div>
           :
             <div>
