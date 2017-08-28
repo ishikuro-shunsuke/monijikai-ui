@@ -1,16 +1,14 @@
 import React, { Component } from 'react';
 import {List, ListItem} from 'material-ui/List';
-import FlatButton from 'material-ui/FlatButton';
 import MuiThemeProvider from 'material-ui/styles/MuiThemeProvider';
 import TextField from 'material-ui/TextField';
 import RaisedButton from 'material-ui/RaisedButton';
 import RefreshIndicator from 'material-ui/RefreshIndicator';
-import {Card, CardActions, CardHeader, CardMedia, CardTitle, CardText} from 'material-ui/Card';
+import Card from 'material-ui/Card';
 import Chip from 'material-ui/Chip';
 import complete from './complete.png';
 
 import fetchJSONP from 'fetch-jsonp';
-import io from 'socket.io-client';
 
 const style = {
   container: {
@@ -36,9 +34,42 @@ const reservationState = {
   FAILED: 'FAILED',
 };
 
+class IzakayaListItem extends Component {
+  return () {
+    const value = this.props.value;
+    <ListItem key={this.props.index} className={"list-item"} >
+      <div style={{ width: "25%", display: 'table-cell', 'vertical-align': 'top', padding: '10px'}}>
+      <img src={value.image_url ?
+        (typeof(value.image_url.shop_image1) === 'string' ? value.image_url.shop_image1 : no_image_url) : no_image_url
+      }
+        style={ { float: 'left', 'margin-right': '20px', width: '100%' } } />
+      </div>
+      <div  style={{ width: "75%", display: 'table-cell', 'vertical-align': 'top'}}>
+      {(value.category ? value.category.split(/　| /) : []).map((value2) =>
+        <Chip style={ { float: 'right', "margin-right": "5px" } }>{value2}</Chip>
+      )}
+      <p><b>{value.name}</b></p>
+      <p style={{"background-color": '#d3edfb' }}>営業時間:{typeof(value.opentime) === 'string' ? value.opentime : '' }</p>
+      <span>最寄駅:{value.access ? value.access.station :''} {value.access ? value.access.walk :''}分 </span><br />
+      <a href={value.url} target={'_blank'} style={{ float: 'right'}}>ページを開く</a>
+      <div  style={ { clear: 'both' } }></div>
+      { (value.reservationState === reservationState.CALLING) ?
+        <RefreshIndicator
+           size={50}
+           left={70}
+           top={0}
+           loadingColor="#FF9800"
+           status="loading"
+           style={style.refresh}
+         /> : ''}
+      { (value.reservationState === reservationState.FAILED) ?  '予約できませんでした': ''} </div>
+    </ListItem>
+  };
+}
+
 class App extends Component {
-  constructor() {
-    super();
+  constructor(props) {
+    super(props);
     this.state = {
       mode: modes.TOP,
       name: '',
@@ -93,7 +124,7 @@ class App extends Component {
       .then((res) => res.json())
       .then((json) => {
         console.log(json);
-        this.setState({ candidates: (json.total_hit_count == 1) ? [json.rest] : json.rest });
+        this.setState({ candidates: (json.total_hit_count === 1) ? [json.rest] : json.rest });
         const candidates = json.rest.map((data) => {
           data.reservationState = reservationState.NOT_STARTED;
           return data;
@@ -118,6 +149,7 @@ class App extends Component {
   }
 
   onHandleReserve() {
+    // デモ用に先頭一件だけ予約する
     this.setState({ wavDone: false })
     const candidates = [].concat(this.state.candidates);
     candidates[0].reservationState = reservationState.CALLING;
@@ -183,33 +215,7 @@ class App extends Component {
                 <RaisedButton label="予約する" onClick={this.onHandleReserve.bind(this)} disabled={ !this.state.wavDone } primary={true} style={{ margin: 'auto', 'font-weight': 'bold', display: 'block'}}/>
               <List>
                 {this.state.candidates.map((value, index) =>
-                  <ListItem key={index} className={"list-item"} >
-                    <div style={{ width: "25%", display: 'table-cell', 'vertical-align': 'top', padding: '10px'}}>
-                    <img src={value.image_url ?
-                      (typeof(value.image_url.shop_image1) == 'string' ? value.image_url.shop_image1 : no_image_url) : no_image_url
-                    }
-                      style={ { float: 'left', 'margin-right': '20px', width: '100%' } } />
-                    </div>
-                    <div  style={{ width: "75%", display: 'table-cell', 'vertical-align': 'top'}}>
-                    {(value.category ? value.category.split(/　| /) : []).map((value2) =>
-                      <Chip style={ { float: 'right', "margin-right": "5px" } }>{value2}</Chip>
-                    )}
-                    <p><b>{value.name}</b></p>
-                    <p style={{"background-color": '#d3edfb' }}>営業時間:{typeof(value.opentime) == 'string' ? value.opentime : '' }</p>
-                    <span>最寄駅:{value.access ? value.access.station :''} {value.access ? value.access.walk :''}分 </span><br />
-                    <a href={value.url} target={'_blank'} style={{ float: 'right'}}>ページを開く</a>
-                    <div  style={ { clear: 'both' } }></div>
-                    { (value.reservationState == reservationState.CALLING) ?
-                      <RefreshIndicator
-                         size={50}
-                         left={70}
-                         top={0}
-                         loadingColor="#FF9800"
-                         status="loading"
-                         style={style.refresh}
-                       /> : ''}
-                    { (value.reservationState == reservationState.FAILED) ?  '予約できませんでした': ''} </div>
-                  </ListItem>
+                  <IzakayaListItem value={value} index={index} />
                 )}
               </List>
             </div>
@@ -218,20 +224,7 @@ class App extends Component {
               <img src={complete} />
               <List>
                 {this.state.candidates.filter((d) => d.reservationState === reservationState.SUCCEEDED).map((value, index) =>
-                  <ListItem key={index} className={"list-item"} >
-                    <img src={value.image_url ?
-                      (typeof(value.image_url.shop_image1) == 'string' ? value.image_url.shop_image1 : no_image_url) : no_image_url
-                    }
-                      style={ { float: 'left', 'margin-right': '20px'} } />
-                    {(value.category ? value.category.split(/　| /) : []).map((value2) =>
-                      <Chip style={ { float: 'right', "margin-right": "5px" } }>{value2}</Chip>
-                    )}
-                    <p><b>{value.name}</b></p>
-                    <p style={{"background-color": '#d3edfb' }}>営業時間:{typeof(value.opentime) == 'string' ? value.opentime : '' }</p>
-                    <span>最寄駅:{value.access ? value.access.station :''} {value.access ? value.access.walk :''}分 </span><br />
-                    <a href={value.url} target={'_blank'} style={{ float: 'right'}}>ページを開く</a>
-                    <div  style={ { clear: 'both' } }></div>
-                  </ListItem>
+                  <IzakayaListItem value={value} index={index} />
                 )}
               </List>
             </div>
